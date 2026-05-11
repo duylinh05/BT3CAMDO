@@ -1,5 +1,9 @@
 # THIẾT KẾ VÀ CÀI ĐẶT CSDL QUẢN LÝ CẦM ĐỒ
 
+Họ và tên: Bùi Duy Linh
+
+MSSV: K2354801060
+
 ## Mô tả bài toán
 
 Hệ thống cần quản lý các hợp đồng vay tiền thế chấp tài sản. Điểm đặc thù của hệ thống là:
@@ -167,10 +171,8 @@ Lưu thông tin tài sản được thế chấp. Trong ví dụ, tài sản là
 
 ## Sơ đồ ERD (mô tả bằng text)
 
-khach_hang (1) -------- (n) hop_dong (n) -------- (n) chi_tiet_hop_dong (1) -------- (n) tai_san
-|
-|
-+-------- (n) lich_su_thanh_toan (1) -------- (1) nhan_vien
+<img width="1918" height="1078" alt="image" src="https://github.com/user-attachments/assets/9f365448-d4fa-48eb-a35d-da2edafe82d0" />
+
 
 
 
@@ -215,7 +217,13 @@ GO
 
 USE quan_ly_cam_do;
 GO
+```
 
+<img width="1918" height="1078" alt="image" src="https://github.com/user-attachments/assets/021d1433-981a-4c58-9019-2090138deb66" />
+
+Tạo database
+
+```sql
 /* ---------------------------------------------------------
    BẢNG KHÁCH HÀNG
    --------------------------------------------------------- */
@@ -325,11 +333,17 @@ CREATE TABLE lich_su_thanh_toan (
         ON DELETE NO ACTION
 );
 GO
-Chèn dữ liệu mẫu (chủ đề quạt)
+```
 
-/* =========================================================
-   DỮ LIỆU MẪU - CHỦ ĐỀ QUẠT
-   ========================================================= */
+<img width="1918" height="1078" alt="image" src="https://github.com/user-attachments/assets/6a568f83-3549-4293-82c9-ac0bde49f442" />
+
+
+Tạo các bảng
+
+
+Chèn dữ liệu mẫu 
+
+```sql
 
 -- Khách hàng mẫu
 INSERT INTO khach_hang (ho_ten, so_dien_thoai, so_cccd, dia_chi)
@@ -376,6 +390,12 @@ GO
 INSERT INTO lich_su_thanh_toan (hop_dong_id, ngay_thanh_toan, so_tien_tra, nhan_vien_id, ghi_chu)
 VALUES
 (1, '2026-05-06 09:00:00', 500000, 1, N'Khách trả đợt 1')
+GO
+```
+
+<img width="1918" height="1078" alt="image" src="https://github.com/user-attachments/assets/54b9204b-0859-4fb1-a461-bfaba04ab4ce" />
+Chèn dữ liệu 
+
 
 ## Event 1: Đăng ký hợp đồng mới (Vay tiền)
 
@@ -403,18 +423,31 @@ CREATE TYPE danh_sach_tai_san AS TABLE (
     mo_ta NVARCHAR(255)
 );
 GO
+```
+<img width="1918" height="1078" alt="image" src="https://github.com/user-attachments/assets/52c22a12-a91f-4e30-b637-1f465a5d8718" />
+
+
 Bước 2: Procedure tiếp nhận hợp đồng mới
+
 Procedure dưới đây thực hiện đầy đủ quy trình:
 
-tìm khách theo CCCD
-nếu chưa có thì thêm mới
-tạo hợp đồng
-thêm từng tài sản trong danh sách
-liên kết tài sản với hợp đồng
+- tìm khách theo CCCD
+  
+- nếu chưa có thì thêm mới
+
+- tạo hợp đồng
+
+- thêm từng tài sản trong danh sách
+
+- liên kết tài sản với hợp đồng
 
 -- Procedure đăng ký hợp đồng mới
 -- Nhận vào thông tin khách hàng, số tiền gốc, 2 mốc deadline
 -- và danh sách tài sản thế chấp
+
+
+```sql
+
 CREATE OR ALTER PROCEDURE sp_dang_ky_hop_dong_moi
     @ho_ten NVARCHAR(100),
     @so_dien_thoai VARCHAR(20),
@@ -508,8 +541,13 @@ BEGIN
         @hop_dong_id AS hop_dong_id;
 END;
 GO
-Ví dụ gọi Procedure
+```
 
+<img width="1918" height="1078" alt="image" src="https://github.com/user-attachments/assets/469dce38-535e-47fc-8c6d-4b5781d89eb5" />
+
+
+Ví dụ gọi Procedure
+```sql
 -- Chuẩn bị danh sách tài sản mẫu
 DECLARE @ds danh_sach_tai_san;
 
@@ -530,33 +568,54 @@ EXEC sp_dang_ky_hop_dong_moi
     @ghi_chu = N'Cam 2 chiec quat',
     @ds_tai_san = @ds;
 GO
+```
+<img width="1918" height="1078" alt="image" src="https://github.com/user-attachments/assets/dd6742cc-3567-42fe-8aaf-85d83d27ab4d" />
+Gọi procedure tạo hợp đồng mới
+
 Event 2: Tính toán công nợ thời gian thực
 Phần này gồm 2 hàm:
 
 fn_CalcMoneyTransaction(TransactionID, TargetDate)
+
 fn_CalcMoneyContract(ContractID, TargetDate)
+
 Trong thiết kế hiện tại:
 
 TransactionID được hiểu là một dòng trong bảng chi_tiet_hop_dong
+
+
 ContractID là một hợp đồng trong bảng hop_dong
+
 Ý tưởng tính lãi
+
 Ta sử dụng đúng quy tắc đề bài:
 
 trước deadline1: tính lãi đơn
+
 sau deadline1: tính lãi kép
+
 Mức lãi:
 
 5.000đ / 1.000.000đ / ngày
+
 tương đương 0.005 mỗi ngày
+
 Công thức
+
 Nếu so_tien_goc = P, lai_suat = r, so_ngay = n
 
 Lãi đơn: P * r * n
+
 Lãi kép sau deadline1:
+
 trước hết tính lãi đơn đến deadline1
+
 sau đó lấy (P + lãi đơn) làm cơ sở
+
 rồi áp dụng POWER(1 + r, số_ngày_sau_deadline1)
+
 Function 1: fn_CalcMoneyTransaction
+
 Hàm này tính số tiền phải trả cho một dòng tài sản trong hợp đồng đến ngày cần tính.
 
 Do hợp đồng vay gốc là chung, để phân bổ cho từng transaction, ta chia số tiền gốc theo tỷ lệ giá trị tài sản cầm cố trong tổng giá trị cầm cố của hợp đồng.
@@ -564,11 +623,17 @@ Do hợp đồng vay gốc là chung, để phân bổ cho từng transaction, t
 Cách làm này hợp lý vì:
 
 một hợp đồng có nhiều tài sản
+
 mỗi transaction là một phần của hợp đồng
+
 cần một cách phân chia gốc để tính riêng từng transaction
 
 -- Hàm tính số tiền phải trả của một transaction (một dòng tài sản trong hợp đồng)
+
 -- đến ngày TargetDate
+
+
+```sql
 CREATE OR ALTER FUNCTION fn_CalcMoneyTransaction
 (
     @TransactionID INT,
@@ -639,22 +704,36 @@ BEGIN
     RETURN @tong_tien;
 END;
 GO
+```
+
+<img width="1917" height="1078" alt="image" src="https://github.com/user-attachments/assets/44a09961-ed10-49c9-a189-f49a5de72c2c" />
+Tạo fn_CalcMoneyTransaction
+
 Ví dụ dùng fn_CalcMoneyTransaction
 
 SELECT dbo.fn_CalcMoneyTransaction(1, '2026-05-09') AS so_tien_transaction_1;
 GO
+
+<img width="1918" height="1078" alt="image" src="https://github.com/user-attachments/assets/e9c8d1c3-f7da-4d20-acb4-9ef51653354b" />
+
 Function 2: fn_CalcMoneyContract
+
 Hàm này tính tổng số tiền khách phải trả cho cả hợp đồng đến ngày TargetDate.
 
 Cách tính:
 
 lấy số tiền gốc của hợp đồng
+
 tính lãi đơn trước deadline1
+
 nếu vượt deadline1 thì chuyển sang lãi kép
+
 trừ toàn bộ số tiền khách đã thanh toán từ bảng lich_su_thanh_toan
 
 -- Hàm tính tổng số tiền phải trả của cả hợp đồng
 -- đến ngày TargetDate
+
+```sql
 CREATE OR ALTER FUNCTION fn_CalcMoneyContract
 (
     @ContractID INT,
@@ -721,80 +800,156 @@ BEGIN
     RETURN @tong_tien;
 END;
 GO
+```
+
+<img width="1918" height="1078" alt="image" src="https://github.com/user-attachments/assets/9aa26dd3-597d-4de3-b1de-2be2a1da891b" />
+
+Tạo fn_CalcMoneyContract
+
 Ví dụ dùng fn_CalcMoneyContract
 
+```sql
 SELECT dbo.fn_CalcMoneyContract(1, '2026-05-09') AS tong_no_hop_dong_1;
 GO
 
 SELECT dbo.fn_CalcMoneyContract(1, GETDATE()) AS tong_no_hien_tai;
 GO
-Event 3: Xử lý trả nợ và hoàn trả tài sản
-Đây là nghiệp vụ phức tạp hơn vì phải xử lý đồng thời:
+```
 
-kiểm tra trạng thái hợp đồng
-chặn thanh toán nếu hợp đồng đã thanh lý
-ghi nhận tiền khách vừa trả
-tính lại dư nợ
-nếu trả hết thì trả toàn bộ tài sản
-nếu chưa trả hết thì cập nhật trạng thái và gợi ý tài sản có thể hoàn lại
-Quy tắc cốt lõi
-Khách chỉ được nhận lại tài sản nếu:
+<img width="1918" height="1078" alt="image" src="https://github.com/user-attachments/assets/435288c2-f959-47c2-8d1d-3e812f642e3a" />
+Test fn_CalcMoneyContract
 
-giá trị các tài sản còn lại >= dư nợ còn lại
-Điều này có nghĩa:
+## Event 3: Xử lý trả nợ và hoàn trả tài sản
 
-không thể tùy ý trả lại tài sản
-phải bảo đảm cửa hàng vẫn giữ đủ giá trị tài sản thế chấp cho phần nợ chưa thanh toán
-Procedure xử lý trả nợ từng phần
-Procedure dưới đây sẽ:
+Đây là nghiệp vụ quan trọng nhất của hệ thống, vì khi khách mang tiền đến, hệ thống không chỉ ghi nhận thanh toán mà còn phải kiểm tra rất nhiều điều kiện nghiệp vụ liên quan đến tài sản, dư nợ và trạng thái hợp đồng.
 
-kiểm tra hợp đồng có tồn tại không
-nếu hợp đồng đã thanh lý thì dừng
-ghi lịch sử thanh toán
-tính lại dư nợ bằng fn_CalcMoneyContract
-nếu dư nợ = 0:
-cập nhật hợp đồng thành DaThanhToan
-trả toàn bộ tài sản
-nếu còn nợ:
-cập nhật hợp đồng thành DangTraGop
-xuất ra danh sách tài sản có thể trả cho khách
+### Mục tiêu xử lý
 
--- Procedure xử lý trả nợ từng phần và gợi ý hoàn trả tài sản
-CREATE OR ALTER PROCEDURE sp_xu_ly_tra_no
+Procedure cần giải quyết các tình huống sau:
+
+- nếu tài sản đã bị thanh lý thì không thu tiền, không trả đồ
+  
+- nếu tài sản chưa bị thanh lý thì:
+  
+  - tính tổng nợ hiện tại
+    
+  - trừ số tiền khách vừa trả
+    
+  - nếu trả hết:
+    
+    - trả toàn bộ tài sản
+      
+    - cập nhật hợp đồng thành `DaThanhToanDu`
+      
+  - nếu chưa trả hết:
+    
+    - cập nhật hợp đồng thành `DangTraGop`
+      
+    - ghi vào bảng log:
+      
+      - số tiền đã trả
+        
+      - số tiền còn nợ
+        
+- sau khi thanh toán, hệ thống cần gợi ý tài sản có thể trả cho khách dựa trên điều kiện:
+  
+  - `giá trị tài sản còn lại >= dư nợ còn lại`
+
+---
+
+### Chuẩn bị thêm cờ `is_sold` cho tài sản
+
+Để bám đúng yêu cầu đề bài “sau Deadline2 và có cờ IsSold”, ta bổ sung cột `is_sold` vào bảng `tai_san`.
+
+```sql
+
+-- Bổ sung cờ đánh dấu tài sản đã bán thanh lý hay chưa
+-- 0 = chưa bán
+-- 1 = đã bán thanh lý
+ALTER TABLE tai_san
+ADD is_sold BIT NOT NULL DEFAULT 0;
+GO
+```
+<img width="1918" height="1078" alt="image" src="https://github.com/user-attachments/assets/1149b809-d869-408f-95d4-2e9ae7c25b2f" />
+Bổ sung cờ đánh dấu tài sản đã bán thanh lý hay chưa
+
+Procedure xử lý khi khách mang tiền đến
+
+Procedure dưới đây xử lý đầy đủ nghiệp vụ:
+
+
+```sql
+kiểm tra hợp đồng tồn tại hay không
+
+kiểm tra có tài sản nào đã bị bán thanh lý chưa
+
+nếu có thì dừng ngay
+nếu chưa:
+
+tính tổng nợ hiện tại
+
+ghi nhận thanh toán
+
+tính dư nợ mới
+
+cập nhật trạng thái phù hợp
+
+trả ra danh sách tài sản gợi ý có thể hoàn cho khách
+
+-- Procedure xử lý trả nợ và hoàn trả tài sản
+CREATE OR ALTER PROCEDURE sp_xu_ly_tra_no_va_tra_tai_san
     @hop_dong_id INT,
-    @so_tien_tra DECIMAL(18,2),
+    @so_tien_khach_tra DECIMAL(18,2),
     @nhan_vien_id INT,
     @ghi_chu NVARCHAR(255) = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
 
-    DECLARE @trang_thai_hop_dong NVARCHAR(50);
-    DECLARE @tong_no_truoc_khi_tra DECIMAL(18,2);
+    DECLARE @tong_no_hien_tai DECIMAL(18,2);
     DECLARE @du_no_con_lai DECIMAL(18,2);
+    DECLARE @co_tai_san_da_ban BIT = 0;
 
-    -- Kiểm tra hợp đồng
-    SELECT @trang_thai_hop_dong = trang_thai
-    FROM hop_dong
-    WHERE id = @hop_dong_id;
-
-    IF @trang_thai_hop_dong IS NULL
+    -- Kiểm tra hợp đồng có tồn tại không
+    IF NOT EXISTS (
+        SELECT 1
+        FROM hop_dong
+        WHERE id = @hop_dong_id
+    )
     BEGIN
         RAISERROR(N'Hop dong khong ton tai.', 16, 1);
         RETURN;
     END
 
-    -- Nếu đã thanh lý thì không nhận tiền
-    IF @trang_thai_hop_dong = N'DaThanhLy'
+    -- Kiểm tra xem trong hợp đồng có tài sản nào đã bị bán thanh lý hay chưa
+    IF EXISTS (
+        SELECT 1
+        FROM chi_tiet_hop_dong ct
+        INNER JOIN tai_san ts ON ct.tai_san_id = ts.id
+        INNER JOIN hop_dong hd ON ct.hop_dong_id = hd.id
+        WHERE ct.hop_dong_id = @hop_dong_id
+          AND CAST(GETDATE() AS DATE) > hd.deadline2
+          AND ts.is_sold = 1
+    )
     BEGIN
-        RAISERROR(N'Hop dong da thanh ly, khong thu tien va khong tra tai san.', 16, 1);
+        RAISERROR(N'Tai san da bi thanh ly. Khong thu tien, khong tra do.', 16, 1);
         RETURN;
     END
 
-    -- Tính tổng nợ trước khi trả
-    SET @tong_no_truoc_khi_tra = dbo.fn_CalcMoneyContract(@hop_dong_id, CAST(GETDATE() AS DATE));
+    -- Tính tổng nợ hiện tại của hợp đồng
+    SET @tong_no_hien_tai = dbo.fn_CalcMoneyContract(@hop_dong_id, CAST(GETDATE() AS DATE));
 
-    -- Ghi lịch sử thanh toán
+    -- Nếu hiện tại nợ đã bằng 0 thì không cần thu thêm
+    IF @tong_no_hien_tai <= 0
+    BEGIN
+        SELECT
+            N'Hop dong nay hien khong con du no.' AS thong_bao,
+            0 AS tong_no_hien_tai,
+            0 AS du_no_con_lai;
+        RETURN;
+    END
+
+    -- Ghi nhận thanh toán vào log
     INSERT INTO lich_su_thanh_toan (
         hop_dong_id,
         ngay_thanh_toan,
@@ -805,24 +960,25 @@ BEGIN
     VALUES (
         @hop_dong_id,
         GETDATE(),
-        @so_tien_tra,
+        @so_tien_khach_tra,
         @nhan_vien_id,
         @ghi_chu
     );
 
-    -- Tính lại dư nợ sau khi trả
+    -- Tính lại dư nợ sau khi khách vừa trả
     SET @du_no_con_lai = dbo.fn_CalcMoneyContract(@hop_dong_id, CAST(GETDATE() AS DATE));
 
     -- Nếu đã trả hết nợ
     IF @du_no_con_lai <= 0
     BEGIN
+        -- Cập nhật trạng thái hợp đồng
         UPDATE hop_dong
         SET
-            trang_thai = N'DaThanhToan',
+            trang_thai = N'DaThanhToanDu',
             ngay_cap_nhat = GETDATE()
         WHERE id = @hop_dong_id;
 
-        -- Đánh dấu đã trả toàn bộ tài sản cho khách
+        -- Trả toàn bộ tài sản cho khách
         UPDATE chi_tiet_hop_dong
         SET
             da_tra_tai_san = 1,
@@ -838,29 +994,29 @@ BEGIN
         WHERE ct.hop_dong_id = @hop_dong_id;
 
         SELECT
-            N'Khach da thanh toan het no. Da tra toan bo tai san.' AS thong_bao,
-            @tong_no_truoc_khi_tra AS tong_no_truoc_khi_tra,
+            N'Khach da thanh toan het tien. Da tra toan bo tai san.' AS thong_bao,
+            @tong_no_hien_tai AS tong_no_truoc_khi_tra,
             0 AS du_no_con_lai;
 
         RETURN;
     END
 
-    -- Nếu chưa trả hết thì chuyển sang trạng thái đang trả góp
+    -- Nếu chưa trả hết thì cập nhật trạng thái đang trả góp
     UPDATE hop_dong
     SET
         trang_thai = N'DangTraGop',
         ngay_cap_nhat = GETDATE()
     WHERE id = @hop_dong_id;
 
-    -- Trả thông tin tổng quan sau khi thanh toán
+    -- Trả thông tin tổng quan sau thanh toán
     SELECT
         N'Khach da tra mot phan. Hop dong chuyen sang DangTraGop.' AS thong_bao,
-        @tong_no_truoc_khi_tra AS tong_no_truoc_khi_tra,
+        @tong_no_hien_tai AS tong_no_truoc_khi_tra,
         @du_no_con_lai AS du_no_con_lai;
 
-    -- Gợi ý danh sách tài sản có thể trả
-    -- Điều kiện: sau khi trả một tài sản, tổng giá trị tài sản còn lại vẫn >= dư nợ còn lại
-    ;WITH ds_tai_san_chua_tra AS
+    -- Gợi ý tài sản có thể trả cho khách
+    -- Điều kiện: nếu trả tài sản này, tổng giá trị còn lại vẫn phải >= dư nợ còn lại
+    ;WITH ds_tai_san_con_giu AS
     (
         SELECT
             ct.id AS chi_tiet_id,
@@ -871,32 +1027,447 @@ BEGIN
         INNER JOIN tai_san ts ON ct.tai_san_id = ts.id
         WHERE ct.hop_dong_id = @hop_dong_id
           AND ct.da_tra_tai_san = 0
+          AND ts.is_sold = 0
     ),
     tong_gia_tri_con_giu AS
     (
         SELECT SUM(gia_tri_cam_co) AS tong_gia_tri
-        FROM ds_tai_san_chua_tra
+        FROM ds_tai_san_con_giu
     )
     SELECT
-        d.chi_tiet_id,
-        d.tai_san_id,
-        d.ten_tai_san,
-        d.gia_tri_cam_co,
-        (t.tong_gia_tri - d.gia_tri_cam_co) AS gia_tri_con_lai_sau_khi_tra,
+        ds.chi_tiet_id,
+        ds.tai_san_id,
+        ds.ten_tai_san,
+        ds.gia_tri_cam_co,
+        (tg.tong_gia_tri - ds.gia_tri_cam_co) AS gia_tri_tai_san_con_lai,
         @du_no_con_lai AS du_no_con_lai
-    FROM ds_tai_san_chua_tra d
-    CROSS JOIN tong_gia_tri_con_giu t
-    WHERE (t.tong_gia_tri - d.gia_tri_cam_co) >= @du_no_con_lai;
+    FROM ds_tai_san_con_giu ds
+    CROSS JOIN tong_gia_tri_con_giu tg
+    WHERE (tg.tong_gia_tri - ds.gia_tri_cam_co) >= @du_no_con_lai;
 END;
 GO
-Ví dụ gọi Procedure xử lý trả nợ
 
-EXEC sp_xu_ly_tra_no
+```
+<img width="1918" height="1078" alt="image" src="https://github.com/user-attachments/assets/1de64ea4-1056-46c6-b5f7-d50b8dbc956e" />
+
+
+Ví dụ chạy thử
+
+EXEC sp_xu_ly_tra_no_va_tra_tai_san
     @hop_dong_id = 1,
-    @so_tien_tra = 700000,
+    @so_tien_khach_tra = 800000,
     @nhan_vien_id = 1,
-    @ghi_chu = N'Khach tra them dot tiep theo';
+    @ghi_chu = N'Khach tra them de giam du no';
 GO
 
+<img width="1917" height="1078" alt="image" src="https://github.com/user-attachments/assets/1e3fe5c0-a4bd-4375-97e1-fa702fdea5fb" />
 
 
+
+Event 4: Truy vấn danh sách nợ xấu (Nợ khó đòi)
+
+Mục tiêu của truy vấn này là liệt kê các khách hàng:
+
+đã quá deadline1
+
+
+chưa thanh toán hết
+
+còn nợ tại thời điểm hiện tại
+
+Kết quả cần trả về các cột:
+
+Tên khách hàng
+
+Số điện thoại
+
+Số tiền vay gốc
+
+Số ngày quá hạn
+
+Tổng tiền phải trả hiện tại
+
+Tổng số tiền phải trả sau 1 tháng nữa
+
+Do ta đã có hàm fn_CalcMoneyContract, truy vấn này sẽ rất gọn và dễ hiểu.
+
+```sql
+-- Danh sách khách hàng nợ xấu
+SELECT
+    kh.ho_ten AS ten_khach_hang,
+    kh.so_dien_thoai,
+    hd.so_tien_goc,
+    DATEDIFF(DAY, hd.deadline1, CAST(GETDATE() AS DATE)) AS so_ngay_qua_han,
+    dbo.fn_CalcMoneyContract(hd.id, CAST(GETDATE() AS DATE)) AS tong_tien_phai_tra_hien_tai,
+    dbo.fn_CalcMoneyContract(hd.id, DATEADD(MONTH, 1, CAST(GETDATE() AS DATE))) AS tong_tien_phai_tra_sau_1_thang
+FROM hop_dong hd
+INNER JOIN khach_hang kh ON hd.khach_hang_id = kh.id
+WHERE CAST(GETDATE() AS DATE) > hd.deadline1
+  AND dbo.fn_CalcMoneyContract(hd.id, CAST(GETDATE() AS DATE)) > 0
+  AND hd.trang_thai NOT IN (N'DaThanhToanDu', N'DaThanhLy');
+GO
+```
+<img width="1918" height="1078" alt="image" src="https://github.com/user-attachments/assets/9eefc25b-fc7c-4c64-b237-1c585e72d24b" />
+Danh sách khách hàng nợ xấu
+
+Nhận xét
+
+Truy vấn này cho phép cửa hàng theo dõi nhanh:
+
+khách nào đang nợ xấu
+
+nợ đã kéo dài bao lâu
+
+nếu tiếp tục không trả, sau 1 tháng nữa số tiền sẽ tăng lên bao nhiêu
+
+Đây là dữ liệu rất quan trọng để:
+
+nhắc nợ
+
+phân loại rủi ro
+
+chuẩn bị xử lý thanh lý nếu cần
+
+Event 5: Quản lý thanh lý tài sản
+
+Phần này dùng trigger để cập nhật trạng thái tự động theo đúng diễn biến của hợp đồng.
+
+Lưu ý quan trọng
+
+Trong SQL Server, trigger không tự chạy chỉ vì thời gian trôi qua.
+
+Trigger chỉ chạy khi có INSERT, UPDATE, DELETE.
+
+Vì vậy trong phạm vi bài tập, ta thiết kế theo hướng:
+
+mỗi khi hợp đồng được thêm hoặc cập nhật
+
+trigger sẽ kiểm tra ngày hiện tại
+
+nếu đủ điều kiện thì đổi trạng thái
+
+Nếu làm hệ thống thực tế, phần tự động theo ngày thường cần thêm:
+
+SQL Server Agent Job hoặc
+
+một tiến trình chạy nền định kỳ
+
+Trigger 1: Chuyển hợp đồng sang “Quá hạn (nợ xấu)”
+Điều kiện:
+
+hợp đồng đang ở trạng thái DangVay
+
+ngày hiện tại đã vượt deadline1
+
+```sql
+-- Trigger chuyển hợp đồng sang quá hạn khi vượt deadline1
+
+CREATE OR ALTER TRIGGER trg_hop_dong_qua_han
+ON hop_dong
+AFTER INSERT, UPDATE
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    UPDATE hd
+    SET
+        hd.trang_thai = N'QuaHan',
+        hd.ngay_cap_nhat = GETDATE()
+    FROM hop_dong hd
+    INNER JOIN inserted i ON hd.id = i.id
+    WHERE CAST(GETDATE() AS DATE) > hd.deadline1
+      AND hd.trang_thai = N'DangVay';
+END;
+GO
+```
+<img width="1918" height="1078" alt="image" src="https://github.com/user-attachments/assets/fe9bdc32-7ec1-4edb-8f27-204d2abff25c" />
+Chuyển hợp đồng sang “Quá hạn (nợ xấu)”
+
+
+Trigger 2: Chuyển tài sản sang “Sẵn sàng thanh lý”
+Điều kiện:
+
+hợp đồng đã ở trạng thái QuaHan
+
+ngày hiện tại vượt deadline2
+
+tài sản vẫn đang cầm cố
+
+```sql
+-- Trigger chuyển tài sản sang trạng thái sẵn sàng thanh lý
+
+CREATE OR ALTER TRIGGER trg_tai_san_san_sang_thanh_ly
+ON hop_dong
+AFTER INSERT, UPDATE
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    UPDATE ts
+    SET ts.trang_thai = N'SanSangThanhLy'
+    FROM tai_san ts
+    INNER JOIN chi_tiet_hop_dong ct ON ts.id = ct.tai_san_id
+    INNER JOIN hop_dong hd ON ct.hop_dong_id = hd.id
+    INNER JOIN inserted i ON hd.id = i.id
+    WHERE hd.trang_thai = N'QuaHan'
+      AND CAST(GETDATE() AS DATE) > hd.deadline2
+      AND ts.trang_thai = N'DangCamCo';
+END;
+GO
+```
+<img width="1918" height="1078" alt="image" src="https://github.com/user-attachments/assets/53c3faf8-e880-4c92-b4c9-15e142f6f015" />
+Trigger chuyển tài sản sang trạng thái sẵn sàng thanh lý
+
+
+
+Trigger 3: Chuyển tài sản sang “Đã bán thanh lý”
+
+Điều kiện:
+
+trạng thái hợp đồng vừa được cập nhật thành DaThanhLy
+
+Ngoài việc đổi trạng thái tài sản, ta cũng cập nhật:
+
+is_sold = 1
+
+```sql
+-- Trigger chuyển tài sản sang đã bán thanh lý khi hợp đồng thành DaThanhLy
+CREATE OR ALTER TRIGGER trg_tai_san_da_ban_thanh_ly
+ON hop_dong
+AFTER UPDATE
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    UPDATE ts
+    SET
+        ts.trang_thai = N'DaBanThanhLy',
+        ts.is_sold = 1
+    FROM tai_san ts
+    INNER JOIN chi_tiet_hop_dong ct ON ts.id = ct.tai_san_id
+    INNER JOIN inserted i ON ct.hop_dong_id = i.id
+    INNER JOIN deleted d ON i.id = d.id
+    WHERE i.trang_thai = N'DaThanhLy'
+      AND d.trang_thai <> N'DaThanhLy';
+END;
+GO
+```
+<img width="1918" height="1078" alt="image" src="https://github.com/user-attachments/assets/d4c6f5d9-0706-44a3-99b3-298c1271eee2" />
+Trigger chuyển tài sản sang đã bán thanh lý khi hợp đồng thành DaThanhLy
+
+Các sự kiện bổ sung
+
+Ngoài các event chính, hệ thống còn cần thêm hai chức năng quan trọng để bám sát nghiệp vụ thực tế hơn.
+
+Sự kiện bổ sung 1: Gia hạn hợp đồng
+
+Trong thực tế, nhiều khách chưa đủ khả năng trả nợ gốc đúng hạn nhưng vẫn có thể trả phần lãi phát sinh để kéo dài hợp đồng.
+
+Khi đó, hệ thống cần hỗ trợ nghiệp vụ gia hạn hợp đồng.
+
+Nguyên tắc xử lý
+
+tính tổng số tiền phải trả tại thời điểm xin gia hạn
+
+xác định phần lãi mà khách bắt buộc phải thanh toán
+
+nếu khách trả đủ lãi:
+
+ghi vào lịch sử thanh toán
+
+dời deadline1
+
+dời deadline2
+
+đưa hợp đồng về lại trạng thái DangVay
+
+nếu không đủ thì từ chối gia hạn
+
+Procedure gia hạn hợp đồng
+
+```sql
+-- Procedure gia hạn hợp đồng
+CREATE OR ALTER PROCEDURE sp_gia_han_hop_dong
+    @hop_dong_id INT,
+    @so_ngay_gia_han_deadline1 INT,
+    @so_ngay_gia_han_deadline2 INT,
+    @so_tien_khach_tra DECIMAL(18,2),
+    @nhan_vien_id INT,
+    @ghi_chu NVARCHAR(255) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @so_tien_goc DECIMAL(18,2);
+    DECLARE @tong_no_hien_tai DECIMAL(18,2);
+    DECLARE @tien_lai_phai_tra DECIMAL(18,2);
+    DECLARE @deadline1_moi DATE;
+    DECLARE @deadline2_moi DATE;
+    DECLARE @trang_thai NVARCHAR(50);
+
+    SELECT
+        @so_tien_goc = so_tien_goc,
+        @trang_thai = trang_thai
+    FROM hop_dong
+    WHERE id = @hop_dong_id;
+
+    IF @so_tien_goc IS NULL
+    BEGIN
+        RAISERROR(N'Hop dong khong ton tai.', 16, 1);
+        RETURN;
+    END
+
+    IF @trang_thai = N'DaThanhLy'
+    BEGIN
+        RAISERROR(N'Hop dong da thanh ly, khong the gia han.', 16, 1);
+        RETURN;
+    END
+
+    -- Tính tổng nợ hiện tại
+    SET @tong_no_hien_tai = dbo.fn_CalcMoneyContract(@hop_dong_id, CAST(GETDATE() AS DATE));
+
+    -- Tạm xác định phần lãi cần trả = tổng nợ hiện tại - gốc
+    SET @tien_lai_phai_tra = @tong_no_hien_tai - @so_tien_goc;
+
+    IF @tien_lai_phai_tra < 0
+        SET @tien_lai_phai_tra = 0;
+
+    -- Nếu khách chưa trả đủ lãi thì không cho gia hạn
+    IF @so_tien_khach_tra < @tien_lai_phai_tra
+    BEGIN
+        RAISERROR(N'Khach chua thanh toan du tien lai de gia han hop dong.', 16, 1);
+        RETURN;
+    END
+
+    -- Ghi lịch sử thanh toán
+    INSERT INTO lich_su_thanh_toan (
+        hop_dong_id,
+        ngay_thanh_toan,
+        so_tien_tra,
+        nhan_vien_id,
+        ghi_chu
+    )
+    VALUES (
+        @hop_dong_id,
+        GETDATE(),
+        @so_tien_khach_tra,
+        @nhan_vien_id,
+        ISNULL(@ghi_chu, N'Gia han hop dong')
+    );
+
+    -- Tính mốc deadline mới
+    SET @deadline1_moi = DATEADD(DAY, @so_ngay_gia_han_deadline1, CAST(GETDATE() AS DATE));
+    SET @deadline2_moi = DATEADD(DAY, @so_ngay_gia_han_deadline2, CAST(GETDATE() AS DATE));
+
+    -- Cập nhật hợp đồng
+    UPDATE hop_dong
+    SET
+        deadline1 = @deadline1_moi,
+        deadline2 = @deadline2_moi,
+        trang_thai = N'DangVay',
+        ngay_cap_nhat = GETDATE(),
+        ghi_chu = CONCAT(ISNULL(ghi_chu, N''), N' | Gia han hop dong')
+    WHERE id = @hop_dong_id;
+
+    SELECT
+        N'Gia han hop dong thanh cong.' AS thong_bao,
+        @tien_lai_phai_tra AS tien_lai_bat_buoc,
+        @deadline1_moi AS deadline1_moi,
+        @deadline2_moi AS deadline2_moi;
+END;
+GO
+```
+<img width="1918" height="1078" alt="image" src="https://github.com/user-attachments/assets/cd7ba174-edc3-448c-a1cd-86120594bc15" />
+
+Sự kiện bổ sung 2: Lịch sử hợp đồng (Audit Log)
+
+Đây là phần cực kỳ quan trọng trong bài toán cầm đồ.
+
+Tại sao phải có bảng log?
+Nếu chỉ lưu một cột kiểu:
+
+so_no_con_lai
+rồi mỗi lần khách trả tiền thì cập nhật ghi đè, sẽ dẫn đến rất nhiều vấn đề:
+
+không biết khách đã trả bao nhiêu lần
+
+không biết trả vào ngày nào
+
+không biết nhân viên nào thu tiền
+
+không thể truy lại lịch sử nếu có tranh chấp
+
+không thể tính chính xác công nợ tại một thời điểm trong quá khứ
+
+Vì vậy, hệ thống bắt buộc phải dùng một bảng log riêng để lưu từng giao dịch.
+
+Trong thiết kế hiện tại
+
+Bảng:
+
+lich_su_thanh_toan
+
+chính là bảng Audit Log của hợp đồng.
+
+Mỗi lần khách trả tiền, hệ thống đều thêm một dòng mới gồm:
+
+ngày trả
+
+số tiền trả
+
+người thu tiền
+
+ghi chú
+
+Lợi ích
+
+Nhờ có bảng log này, hệ thống có thể:
+
+cộng lại tổng số tiền khách đã trả
+
+tính lại công nợ bất kỳ lúc nào
+
+biết được lịch sử thanh toán chi tiết
+
+kiểm tra được nhân viên thu tiền
+
+đối soát số liệu nếu phát sinh tranh chấp
+
+Truy vấn xem lịch sử hợp đồng
+
+-- Xem lịch sử thanh toán chi tiết của từng hợp đồng
+
+```sql
+SELECT
+    lt.id AS thanh_toan_id,
+    lt.hop_dong_id,
+    kh.ho_ten AS ten_khach_hang,
+    lt.ngay_thanh_toan,
+    lt.so_tien_tra,
+    nv.ho_ten AS nguoi_thu_tien,
+    lt.ghi_chu
+FROM lich_su_thanh_toan lt
+INNER JOIN hop_dong hd ON lt.hop_dong_id = hd.id
+INNER JOIN khach_hang kh ON hd.khach_hang_id = kh.id
+INNER JOIN nhan_vien nv ON lt.nhan_vien_id = nv.id
+ORDER BY lt.ngay_thanh_toan DESC;
+GO
+```
+
+<img width="1918" height="1078" alt="image" src="https://github.com/user-attachments/assets/c12fdd8a-2d85-4d50-8298-29b4a52f09d0" />
+
+Truy vấn tổng tiền đã trả theo hợp đồng
+
+```sql
+-- Tổng hợp số tiền khách đã trả cho từng hợp đồng
+SELECT
+    hop_dong_id,
+    SUM(so_tien_tra) AS tong_tien_da_tra
+FROM lich_su_thanh_toan
+GROUP BY hop_dong_id;
+GO
+
+```
+
+<img width="1918" height="1078" alt="image" src="https://github.com/user-attachments/assets/0c91dbe7-263c-4bf3-b9bb-84925bd4820b" />
+Truy vấn tổng tiền đã trả theo hợp đồng
