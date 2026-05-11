@@ -2,7 +2,7 @@
 
 Họ và tên: Bùi Duy Linh
 
-MSSV: K2354801060
+MSSV: K235480106041
 
 ## Mô tả bài toán
 
